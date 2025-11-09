@@ -2,7 +2,7 @@
 
 [![Difficulty](https://img.shields.io/badge/difficulty-medium-brightgreen)]()
 [![Language](https://img.shields.io/badge/language-C%23-informational)]()
-[![Deadline](https://img.shields.io/badge/deadline-2025--11--09-critical)]()
+[![Deadline](https://img.shields.io/badge/deadline-2025--11--16-critical)]()
 
 > Design and implement a message-driven logging backbone using RabbitMQ that supports **two concurrent patterns**: (1) **Work Queue Distribution** for `Error` logs (each message handled by exactly one consumer, fairly balanced), and (2) **Fanout Broadcasting** for `Info` logs (real-time delivery to all active subscribers).
 
