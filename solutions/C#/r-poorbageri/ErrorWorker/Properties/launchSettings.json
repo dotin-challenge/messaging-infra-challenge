@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ErrorWorker": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}
