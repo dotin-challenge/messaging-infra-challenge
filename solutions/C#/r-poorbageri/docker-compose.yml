@@ -1,0 +1,61 @@
+version: '3.9'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: pass
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  producer:
+    build:
+      context: ./Producer
+    container_name: producer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: user
+      RABBITMQ_PASS: pass
+      SERVICE_NAME: ProducerService
+    ports:
+      - "5000:8080"
+    restart: on-failure
+
+  errorworker:
+    build:
+      context: ./ErrorWorker
+    container_name: errorworker
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: user
+      RABBITMQ_PASS: pass
+      SERVICE_NAME: ErrorWorkerService
+    restart: on-failure
+
+  infosubscriber:
+    build:
+      context: ./InfoSubscriber
+    container_name: infosubscriber
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: user
+      RABBITMQ_PASS: pass
+      SERVICE_NAME: InfoSubscriberService
+    restart: on-failure

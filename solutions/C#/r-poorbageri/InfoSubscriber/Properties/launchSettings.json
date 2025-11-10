@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "InfoSubscriber": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}
