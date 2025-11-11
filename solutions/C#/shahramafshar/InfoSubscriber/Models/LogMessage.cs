@@ -1,4 +1,4 @@
-﻿namespace InfoSubscriberA.Models;
+﻿namespace InfoSubscriber.Models;
 
 public class LogMessage
 {
