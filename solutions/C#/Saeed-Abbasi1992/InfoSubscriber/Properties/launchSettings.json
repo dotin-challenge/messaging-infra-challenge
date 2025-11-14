@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "InfoSubscriber": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "AMQP_URI": "amqp://guest:guest@localhost:5672/",
+        "RABBIT_HOST": "localhost",
+        "RABBIT_PASS": "guest",
+        "RABBIT_USER": "guest"
+      }
+    }
+  }
+}
