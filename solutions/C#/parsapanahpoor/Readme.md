@@ -24,7 +24,7 @@ docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
 Access Management UI: http://localhost:15672
 
 Default credentials: guest / guest
-
+```
 ## Project Structure
 
 
@@ -49,51 +49,51 @@ MessagingInfra/
 
 **Linux/macOS:**
 
-bash
+```bash
 export RABBITMQ_HOST=localhost
 export RABBITMQ_PORT=5672
 export RABBITMQ_USER=guest
 export RABBITMQ_PASS=guest
 export RABBITMQ_VHOST=/
-
+```
 **Windows PowerShell:**
 
-powershell
+```powershell
 $env:RABBITMQ_HOST="localhost"
 $env:RABBITMQ_PORT="5672"
 $env:RABBITMQ_USER="guest"
 $env:RABBITMQ_PASS="guest"
 $env:RABBITMQ_VHOST="/"
-
+```
 ## Running the Producer
 
-bash
+```bash
 dotnet run --project Producer/Producer.csproj
-
+```
 ## Running Error Workers
 
 **Terminal 1:**
 
-bash
+```bash
 dotnet run --project ErrorWorker/ErrorWorker.csproj WorkerA
-
+```
 **Terminal 2:**
 
-bash
+```bash
 dotnet run --project ErrorWorker/ErrorWorker.csproj WorkerB
-
+```
 ## Running Info Subscribers
 
 **Terminal 1:**
 
-bash
+```bash
 dotnet run --project InfoSubscriber/InfoSubscriber.csproj elk
-
+```
 **Terminal 2:**
 
-bash
+```bash
 dotnet run --project InfoSubscriber/InfoSubscriber.csproj grafana
-
+```
 ## Testing Work Queue Pattern
 
 **Goal:** Verify fair distribution of messages among Workers without duplication.
@@ -126,30 +126,30 @@ dotnet run --project InfoSubscriber/InfoSubscriber.csproj grafana
 - Set prefetchCount to 1 for fair distribution
 - Durable Queue
 
-csharp
+```csharp
 channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
 channel.BasicConsume(queue: "logs.error.q", autoAck: false, consumer: consumer);
-
+```
 **Fanout Pattern:**
 
 - Fanout Exchange for broadcasting
 - Each Subscriber has its own dedicated queue
 - Queues bound to Exchange without Routing Key
 
-csharp
+```csharp
 channel.ExchangeDeclare("logs.info.exchange", ExchangeType.Fanout, durable: true);
 string queueName = $"logs.info.q.{subscriberId}";
 channel.QueueBind(queue: queueName, exchange: "logs.info.exchange", routingKey: "");
-
+```
 ## Common Troubleshooting
 
 **Issue: Connection refused**
 
 Verify that RabbitMQ is running:
 
-bash
+```bash
 docker ps | grep rabbitmq
-
+```
 **Issue: Messages not being received**
 
 Check the RabbitMQ Management UI and verify that Queues and Exchanges are created correctly.
