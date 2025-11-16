@@ -1,47 +1,90 @@
-﻿using System.Text;
-using System.Text.Json;
-using RabbitMQ.Client;
+﻿using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using Shared;
+using System.Runtime.Loader;
+using System.Text;
+using System.Text.Json;
 
 namespace ErrorWorker;
 
 public class Program
 {
-    public static void Main(string[] args)
+    static async Task<int> Main(string[] args)
     {
-        var uri = Environment.GetEnvironmentVariable(SharedConstants.AmqpUriEnv) ?? "amqp://guest:guest@localhost:5672/";
-        using var rabbit = new RabbitConnection(uri);
+        var uri = Environment.GetEnvironmentVariable(SharedConstants.AmqpUriEnv) ??
+                  "amqp://guest:guest@localhost:5672/";
+        var prefetch = int.TryParse(Environment.GetEnvironmentVariable(SharedConstants.PrefetchEnv), out var p) ? p : 1;
+
+        using var rabbit = new RabbitConnection(uri, prefetch);
         var channel = rabbit.Channel;
+        channel.BasicQos(0, (ushort)prefetch, false);
+
         var idempotency = new IdempotencyStore();
-        var consumer = new RabbitMQ.Client.Events.EventingBasicConsumer(channel);
-        consumer.Received += async (_, ea) =>
+
+        var consumer = new EventingBasicConsumer(channel);
+        consumer.Received += async (model, ea) =>
         {
-            var msg = JsonSerializer.Deserialize<LogMessage>(Encoding.UTF8.GetString(ea.Body.ToArray()));
-            if (msg == null) 
-                return;
-
-            if (idempotency.IsProcessed(msg.Id))
-            {
-                channel.BasicAck(ea.DeliveryTag, false);
-                return;
-            }
-
+            var body = ea.Body.ToArray();
+            LogMessage? msg = null;
             try
             {
-                Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] [ErrorWorker-{Environment.MachineName}] Processing {msg.Id}");
-                await Task.Delay(new Random().Next(100, 1000)); // Simulate processing
-                channel.BasicAck(ea.DeliveryTag, false);
-                idempotency.MarkProcessed(msg.Id);
-                Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] [ErrorWorker-{Environment.MachineName}] Completed {msg.Id}");
+                msg = JsonSerializer.Deserialize<LogMessage>(Encoding.UTF8.GetString(body));
             }
             catch
             {
-                channel.BasicNack(ea.DeliveryTag, false, requeue: true);
+                Console.WriteLine("[ErrorWorker] Malformed message - acking to drop");
+                channel.BasicAck(ea.DeliveryTag, false);
+                return;
+            }
+
+            if (msg == null)
+            {
+                channel.BasicAck(ea.DeliveryTag, false);
+                return;
+            }
+
+            if (idempotency.IsProcessed(msg.Id))
+            {
+                Console.WriteLine($"[ErrorWorker] Duplicate {msg.Id} -> ack");
+                channel.BasicAck(ea.DeliveryTag, false);
+                return;
+            }
+
+            Console.WriteLine($"[ErrorWorker] Received {msg.Id} - processing...");
+            try
+            {
+                await Task.Delay(new Random().Next(200, 1200));
+                idempotency.MarkProcessed(msg.Id);
+                channel.BasicAck(ea.DeliveryTag, false);
+                Console.WriteLine($"[ErrorWorker] Processed {msg.Id}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ErrorWorker] Error processing {msg.Id}: {ex.Message}. Sending to DLX");
+                channel.BasicNack(ea.DeliveryTag, false, requeue: false);
             }
         };
 
-        channel.BasicConsume(SharedConstants.ErrorQueue, autoAck: false, consumer);
-        Console.WriteLine("[ErrorWorker] Listening...");
-        Console.ReadLine();
+        var consumerTag = channel.BasicConsume(SharedConstants.ErrorQueue, autoAck: false, consumer);
+
+        var done = new TaskCompletionSource<bool>();
+        AssemblyLoadContext.Default.Unloading += ctx => { done.TrySetResult(true); };
+        Console.CancelKeyPress += (s, e) =>
+        {
+            e.Cancel = true;
+            done.TrySetResult(true);
+        };
+
+        Console.WriteLine("[ErrorWorker] Listening for error messages...");
+        await done.Task;
+        try
+        {
+            channel.BasicCancel(consumerTag);
+        }
+        catch
+        {
+        }
+
+        return 0;
     }
 }

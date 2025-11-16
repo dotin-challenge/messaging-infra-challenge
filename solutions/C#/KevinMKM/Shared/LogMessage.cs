@@ -9,5 +9,5 @@ public record LogMessage(
     DateTime Timestamp = default
 )
 {
-    public LogMessage(LogType logType) : this(Guid.NewGuid().ToString(), "", "", "", logType, DateTime.UtcNow) { }
+    public LogMessage() : this(Guid.NewGuid().ToString(), "", "", "", LogType.Info, DateTime.UtcNow) { }
 }

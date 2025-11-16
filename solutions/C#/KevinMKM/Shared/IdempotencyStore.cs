@@ -7,10 +7,7 @@ namespace Shared
         private readonly ConcurrentDictionary<string, DateTime> _processed = new();
         private readonly TimeSpan _ttl = TimeSpan.FromHours(1);
 
-        public bool IsProcessed(string messageId)
-        {
-            return _processed.ContainsKey(messageId);
-        }
+        public bool IsProcessed(string messageId) => _processed.ContainsKey(messageId);
 
         public void MarkProcessed(string messageId)
         {
@@ -20,11 +17,9 @@ namespace Shared
 
         private void Cleanup()
         {
-            var keysToRemove = _processed.Where(kv => DateTime.UtcNow - kv.Value > _ttl)
-                .Select(kv => kv.Key)
-                .ToList();
-            foreach (var key in keysToRemove)
-                _processed.TryRemove(key, out _);
+            var cutoff = DateTime.UtcNow - _ttl;
+            var keys = _processed.Where(kv => kv.Value < cutoff).Select(kv => kv.Key).ToList();
+            foreach (var k in keys) _processed.TryRemove(k, out _);
         }
     }
 }

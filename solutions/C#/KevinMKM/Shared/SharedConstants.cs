@@ -5,6 +5,7 @@
         #region Rabbit MQ
 
         public const string AmqpUriEnv = "AMQP_URI";
+        public const string PrefetchEnv = "PREFETCH_COUNT";
 
         #endregion
 
@@ -18,7 +19,7 @@
         #endregion
 
         #region Info Flow
-
+        
         public const string InfoExchange = "logs.info.exchange";
         public const int PrefetchCount = 2;
 

@@ -1,34 +1,70 @@
-﻿using System.Text;
-using System.Text.Json;
-using RabbitMQ.Client;
+﻿using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using Shared;
+using System.Runtime.Loader;
+using System.Text;
+using System.Text.Json;
 
 namespace InfoSubscriber;
 
 public class Program
 {
-    public static void Main(string[] args)
+    static async Task<int> Main(string[] args)
     {
-        var service = args.Length > 0 ? args[0] : "unknown";
+        var serviceName = args.Length > 0 ? args[0] : $"info-{Environment.MachineName}";
         var uri = Environment.GetEnvironmentVariable(SharedConstants.AmqpUriEnv) ?? "amqp://guest:guest@localhost:5672/";
-        using var rabbit = new RabbitConnection(uri);
+        var prefetch = int.TryParse(Environment.GetEnvironmentVariable(SharedConstants.PrefetchEnv), out var p)
+            ? p
+            : 10;
+
+        using var rabbit = new RabbitConnection(uri, prefetch);
         var channel = rabbit.Channel;
-        var queueName = $"logs.info.q.{service}";
+
+        var queueName = $"logs.info.q.{serviceName}";
         channel.QueueDeclare(queueName, durable: true, exclusive: false, autoDelete: false);
         channel.QueueBind(queueName, SharedConstants.InfoExchange, "");
-        var consumer = new RabbitMQ.Client.Events.EventingBasicConsumer(channel);
-        consumer.Received += async (ch, ea) =>
-        {
-            var msg = JsonSerializer.Deserialize<LogMessage>(Encoding.UTF8.GetString(ea.Body.ToArray()));
-            if (msg == null)
-                return;
 
-            Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] [InfoSub-{service}] {msg.Id} -> dashboard updated");
+        var consumer = new EventingBasicConsumer(channel);
+        consumer.Received += (ch, ea) =>
+        {
+            var body = ea.Body.ToArray();
+            try
+            {
+                var msg = JsonSerializer.Deserialize<LogMessage>(Encoding.UTF8.GetString(body));
+                if (msg != null)
+                {
+                    Console.WriteLine($"[InfoSub-{serviceName}] {msg.Id} -> dashboard update");
+                }
+            }
+            catch
+            {
+                /* ignored*/
+            }
+
             channel.BasicAck(ea.DeliveryTag, false);
         };
 
-        channel.BasicConsume(queueName, autoAck: false, consumer);
-        Console.WriteLine($"[InfoSub-{service}] Listening...");
-        Console.ReadLine();
+        var consumerTag = channel.BasicConsume(queueName, autoAck: false, consumer);
+
+        var done = new TaskCompletionSource<bool>();
+        AssemblyLoadContext.Default.Unloading += ctx => { done.TrySetResult(true); };
+        Console.CancelKeyPress += (s, e) =>
+        {
+            e.Cancel = true;
+            done.TrySetResult(true);
+        };
+
+        Console.WriteLine($"[InfoSub-{serviceName}] Listening...");
+        await done.Task;
+
+        try
+        {
+            channel.BasicCancel(consumerTag);
+        }
+        catch
+        {
+        }
+
+        return 0;
     }
 }
