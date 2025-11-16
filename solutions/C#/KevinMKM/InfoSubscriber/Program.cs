@@ -13,9 +13,7 @@ public class Program
     {
         var serviceName = args.Length > 0 ? args[0] : $"info-{Environment.MachineName}";
         var uri = Environment.GetEnvironmentVariable(SharedConstants.AmqpUriEnv) ?? "amqp://guest:guest@localhost:5672/";
-        var prefetch = int.TryParse(Environment.GetEnvironmentVariable(SharedConstants.PrefetchEnv), out var p)
-            ? p
-            : 10;
+        var prefetch = int.TryParse(Environment.GetEnvironmentVariable(SharedConstants.PrefetchEnv), out var p) ? p : 10;
 
         using var rabbit = new RabbitConnection(uri, prefetch);
         var channel = rabbit.Channel;
@@ -24,46 +22,32 @@ public class Program
         channel.QueueDeclare(queueName, durable: true, exclusive: false, autoDelete: false);
         channel.QueueBind(queueName, SharedConstants.InfoExchange, "");
 
-        var consumer = new EventingBasicConsumer(channel);
-        consumer.Received += (ch, ea) =>
+        void RegisterConsumer()
         {
-            var body = ea.Body.ToArray();
-            try
+            var consumer = new EventingBasicConsumer(channel);
+            consumer.Received += (ch, ea) =>
             {
-                var msg = JsonSerializer.Deserialize<LogMessage>(Encoding.UTF8.GetString(body));
-                if (msg != null)
+                var body = ea.Body.ToArray();
+                try
                 {
-                    Console.WriteLine($"[InfoSub-{serviceName}] {msg.Id} -> dashboard update");
+                    var msg = JsonSerializer.Deserialize<LogMessage>(Encoding.UTF8.GetString(body));
+                    if (msg != null)
+                        Console.WriteLine($"[InfoSub-{serviceName}] {msg.Id} -> dashboard update");
+                    channel.BasicAck(ea.DeliveryTag, false);
                 }
-            }
-            catch
-            {
-                /* ignored*/
-            }
+                catch { channel.BasicNack(ea.DeliveryTag, false, false); }
+            };
+            channel.BasicConsume(queueName, autoAck: false, consumer: consumer);
+        }
 
-            channel.BasicAck(ea.DeliveryTag, false);
-        };
-
-        var consumerTag = channel.BasicConsume(queueName, autoAck: false, consumer);
+        RegisterConsumer();
 
         var done = new TaskCompletionSource<bool>();
-        AssemblyLoadContext.Default.Unloading += ctx => { done.TrySetResult(true); };
-        Console.CancelKeyPress += (s, e) =>
-        {
-            e.Cancel = true;
-            done.TrySetResult(true);
-        };
+        AssemblyLoadContext.Default.Unloading += ctx => done.TrySetResult(true);
+        Console.CancelKeyPress += (s, e) => { e.Cancel = true; done.TrySetResult(true); };
 
         Console.WriteLine($"[InfoSub-{serviceName}] Listening...");
         await done.Task;
-
-        try
-        {
-            channel.BasicCancel(consumerTag);
-        }
-        catch
-        {
-        }
 
         return 0;
     }
