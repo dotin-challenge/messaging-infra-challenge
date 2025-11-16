@@ -20,14 +20,14 @@ namespace SharedKernel
                     };
 
                     var connection = await factory.CreateConnectionAsync();
-                    ConsoleLogger.LogInfo($"[Info] {clientName} connected to RabbitMQ at {amqpUri} (attempt {attempt})");
+                    ConsoleLogger.LogInfo($"{clientName} connected to RabbitMQ at {amqpUri} (attempt {attempt})");
 
                     return connection;
                 }
                 catch (Exception ex)
                 {
                     lastException = ex;
-                    ConsoleLogger.LogWarning($"[Warning] Attempt {attempt}/{maxRetryCount} failed: {ex.Message}");
+                    ConsoleLogger.LogWarning($"Attempt {attempt}/{maxRetryCount} failed: {ex.Message}");
 
                     if (attempt != maxRetryCount)
                         await Task.Delay(1000);
