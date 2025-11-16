@@ -1,1 +1,18 @@
-# Dockerfile for Producer
+# Stage 1: Build
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
+WORKDIR /app
+
+COPY ./Producer/*.csproj ./Producer/
+COPY ./Shared/*.csproj ./Shared/
+RUN dotnet restore ./Producer/Producer.csproj
+
+COPY ./Producer ./Producer
+COPY ./Shared ./Shared
+WORKDIR /app/Producer
+RUN dotnet publish -c Release -o out
+
+# Stage 2: Runtime
+FROM mcr.microsoft.com/dotnet/runtime:6.0
+WORKDIR /app
+COPY --from=build /app/Producer/out ./
+ENTRYPOINT ["dotnet", "Producer.dll"]
