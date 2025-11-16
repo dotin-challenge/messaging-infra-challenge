@@ -51,7 +51,7 @@ public class ErrorPublisher : IPublisher<ErrorMessageModel>
             }
             catch (Exception ex)
             {
-                ConsoleLogger.LogWarning($"[Warning] Publish failed ({attempt}/{maxRetryCount}): {ex.Message}");
+                ConsoleLogger.LogWarning($"Publish failed ({attempt}/{maxRetryCount}): {ex.Message}");
 
                 if (attempt < maxRetryCount)
                     await Task.Delay(500, cancellationToken);
