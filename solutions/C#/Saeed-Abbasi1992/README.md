@@ -71,19 +71,19 @@ dotnet build
 
 2. **Run Producer**
 ```bash
-dotnet run --project solutions/C#/YOUR_NAME/Producer
+dotnet run --project solutions/C#/Saeed-Abbasi1992/Producer
 ```
 
 3. **Run ErrorWorker** (at least two instances)
 ```bash
-dotnet run --project solutions/C#/YOUR_NAME/ErrorWorker
-dotnet run --project solutions/C#/YOUR_NAME/ErrorWorker
+dotnet run --project solutions/C#/Saeed-Abbasi1992/ErrorWorker
+dotnet run --project solutions/C#/Saeed-Abbasi1992/ErrorWorker
 ```
 
 4. **Run InfoSubscriber** (one instance per service)
 ```bash
-dotnet run --project solutions/C#/YOUR_NAME/InfoSubscriber -- grafana
-dotnet run --project solutions/C#/YOUR_NAME/InfoSubscriber -- elk
+dotnet run --project solutions/C#/Saeed-Abbasi1992/InfoSubscriber -- grafana
+dotnet run --project solutions/C#/Saeed-Abbasi1992/InfoSubscriber -- elk
 ```
 
 > Note: Execution order does not matter; durable queues and persistent messages ensure that messages are not lost even if subscribers start later.
@@ -117,18 +117,4 @@ dotnet run --project solutions/C#/YOUR_NAME/InfoSubscriber -- elk
 ---
 
 
-## Execution Example
-
-```bash
-# Producer
-dotnet run --project solutions/C#/Saeed-Abbasi1992/Producer
-
-# Error Workers
-dotnet run --project solutions/C#/Saeed-Abbasi1992/ErrorWorker
-dotnet run --project solutions/C#/Saeed-Abbasi1992/ErrorWorker
-
-# Info Subscribers
-dotnet run --project solutions/C#/Saeed-Abbasi1992/InfoSubscriber -- grafana
-dotnet run --project solutions/C#/Saeed-Abbasi1992/InfoSubscriber -- elk
-```
 
