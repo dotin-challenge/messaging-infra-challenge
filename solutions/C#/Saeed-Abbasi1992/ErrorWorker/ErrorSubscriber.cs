@@ -77,21 +77,31 @@ namespace ErrorWorker
         private async Task<IChannel> CreateAndConfigureChannelAsync()
         {
             var options = new CreateChannelOptions(publisherConfirmationsEnabled: true, false);
+            var newChannel = await connection.CreateChannelAsync(options, CancellationToken.None);
 
-            var result = await connection.CreateChannelAsync(options, CancellationToken.None);
+            // Main Exchange
+            await newChannel.ExchangeDeclareAsync(RabbitMqConstants.ErrorExchangeName, ExchangeType.Direct, durable: true);
 
-            await result.ExchangeDeclareAsync(RabbitMqConstants.ErrorExchangeName, ExchangeType.Direct, durable: true);
+            // DLX و DLQ
+            var deadLetterExchangeName = $"{RabbitMqConstants.ErrorExchangeName}.dlx";
+            await newChannel.ExchangeDeclareAsync(deadLetterExchangeName, ExchangeType.Direct, durable: true);
+            await newChannel.QueueDeclareAsync("logs.error.dlq", durable: true, exclusive: false, autoDelete: false);
+            await newChannel.QueueBindAsync("logs.error.dlq", deadLetterExchangeName, "");
 
-            await result.QueueDeclareAsync(
-                queue: RabbitMqConstants.ErrorQueueName,
+            var queueArgs = new Dictionary<string, object?> { { "x-dead-letter-exchange", deadLetterExchangeName } };
+            await newChannel.QueueDeclareAsync(
+                RabbitMqConstants.ErrorQueueName,
                 durable: true,
                 exclusive: false,
                 autoDelete: false,
-                arguments: null);
+                arguments: queueArgs);
+            
+            await newChannel.BasicQosAsync(prefetchSize: 0, prefetchCount: 1, global: false);
 
-            await result.BasicQosAsync(prefetchSize: 0, prefetchCount: 1, global: false);
+            await newChannel.QueueBindAsync(RabbitMqConstants.ErrorQueueName, RabbitMqConstants.ErrorExchangeName, RabbitMqConstants.ErrorRoutingKey);
 
-            return result;
+            return newChannel;
+
         }
     }
 }

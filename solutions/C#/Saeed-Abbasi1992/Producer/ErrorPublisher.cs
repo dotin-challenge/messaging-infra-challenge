@@ -39,7 +39,7 @@ public class ErrorPublisher : IPublisher<ErrorMessageModel>
 
                 await channel.BasicPublishAsync(
                     exchange: Constants.ErrorExchangeName,
-                    routingKey: Constants.ErrorQueueName,
+                    routingKey: Constants.ErrorRoutingKey,
                     mandatory: true,
                     basicProperties: properties,
                     body: body,
@@ -60,29 +60,34 @@ public class ErrorPublisher : IPublisher<ErrorMessageModel>
             }
         }
 
-        throw new Exception("[Fatal] ErrorPublisher failed after max retries.");
+        throw new Exception($"[Fatal] ErrorPublisher failed after {maxRetryCount} retries.");
     }
 
     private async Task<IChannel> CreateAndConfigureChannelAsync(CancellationToken cancellationToken)
     {
         var options = new CreateChannelOptions(publisherConfirmationsEnabled: true, false);
+        var newChannel = await connection.CreateChannelAsync(options, cancellationToken);
 
-        var result = await connection.CreateChannelAsync(options, cancellationToken);
+        // Main Exchange
+        await newChannel.ExchangeDeclareAsync(Constants.ErrorExchangeName, ExchangeType.Direct, durable: true);
 
-        await result.ExchangeDeclareAsync(Constants.ErrorExchangeName, ExchangeType.Direct, durable: true);
+        // Dead-Letter Exchange و Queue
+        var dlxName = $"{Constants.ErrorExchangeName}.dlx";
+        await newChannel.ExchangeDeclareAsync(dlxName, ExchangeType.Direct, durable: true);
+        await newChannel.QueueDeclareAsync("logs.error.dlq", durable: true, exclusive: false, autoDelete: false);
+        await newChannel.QueueBindAsync("logs.error.dlq", dlxName, "");
 
-        await result.QueueDeclareAsync(
-            queue: Constants.ErrorQueueName,
+        var queueArgs = new Dictionary<string, object?> { { "x-dead-letter-exchange", dlxName } };
+        await newChannel.QueueDeclareAsync(
+            Constants.ErrorQueueName,
             durable: true,
             exclusive: false,
-            autoDelete: false);
+            autoDelete: false,
+            arguments: queueArgs);
 
-        await result.QueueBindAsync(
-            queue: Constants.ErrorQueueName,
-            exchange: Constants.ErrorExchangeName,
-            routingKey: Constants.ErrorQueueName);
+        await newChannel.QueueBindAsync(Constants.ErrorQueueName, Constants.ErrorExchangeName, Constants.ErrorRoutingKey);
 
-        return result;
+        return newChannel;
     }
 }
 

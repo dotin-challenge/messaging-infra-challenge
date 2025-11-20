@@ -19,7 +19,7 @@ The main goal is to send and receive **Info** and **Error** messages reliably, s
 ## Prerequisites
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) or later
-- RabbitMQ:docker run -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:4-management
+- RabbitMQ: `docker run -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:4-management`
 - Environment variables:
 
 | Variable | Description | Example |
@@ -54,10 +54,39 @@ export RABBIT_PASS="guest"
 ## Project Structure
 
 ```
-Producer          -> Produces Info and Error messages
-ErrorWorker       -> Consumes Error messages
-InfoSubscriber    -> Consumes Info messages for each service (e.g., Grafana or ELK)
-SharedKernel      -> Shared code including models and helper classes
+solutions/
+└─ C#/
+   └─ Saeed-Abbasi1992/
+      ├─ Producer/
+      │  ├─ Program.cs
+      │  ├─ InfoPublisher.cs
+      │  └─ ErrorPublisher.cs
+      │
+      ├─ ErrorWorker/
+      │  ├─ Program.cs
+      │  └─ ErrorSubscriber.cs
+      │
+      ├─ InfoSubscriber/
+      │  ├─ Program.cs
+      │  └─ LogInfoSubscriber.cs
+      │
+      └─ SharedKernel/
+         ├─ SharedKernel.csproj
+         ├─ ConsoleLogger.cs
+         ├─ Constants.cs
+         ├─ AMQPUriHelper.cs
+         ├─ RabbitConnectionHelper.cs
+         │
+         ├─ Interfaces/
+         │  ├─ IPublisher.cs
+         │  └─ ISubscriber.cs
+         │
+         └─ Models/
+            ├─ MessageModel.cs
+            ├─ InfoMessageModel.cs
+            ├─ ErrorMessageModel.cs
+            └─ SeverityType.cs
+
 ```
 
 ---
@@ -77,12 +106,16 @@ dotnet run --project solutions/C#/Saeed-Abbasi1992/Producer
 3. **Run ErrorWorker** (at least two instances)
 ```bash
 dotnet run --project solutions/C#/Saeed-Abbasi1992/ErrorWorker
+```
+```bash
 dotnet run --no-build --project solutions/C#/Saeed-Abbasi1992/ErrorWorker
 ```
 
 4. **Run InfoSubscriber** (one instance per service)
 ```bash
 dotnet run --project solutions/C#/Saeed-Abbasi1992/InfoSubscriber -- grafana
+```
+```bash
 dotnet run --no-build --project solutions/C#/Saeed-Abbasi1992/InfoSubscriber -- elk
 ```
 
@@ -113,8 +146,3 @@ dotnet run --no-build --project solutions/C#/Saeed-Abbasi1992/InfoSubscriber -- 
 - `Service` : Service name
 - `Message` : Error message
 - `SeverityType` : Severity (HIGH, MEDIUM, CRITICAL)
-
----
-
-
-

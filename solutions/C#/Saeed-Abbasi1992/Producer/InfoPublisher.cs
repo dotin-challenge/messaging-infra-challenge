@@ -49,8 +49,12 @@ namespace Producer
         {
             var channel = await connection.CreateChannelAsync();
 
-            await channel.ExchangeDeclareAsync(Constants.InfoExchangeName, ExchangeType.Fanout,
-                durable: true, autoDelete: false);
+            await channel.ExchangeDeclareAsync(
+                exchange: Constants.InfoExchangeName,
+                type: ExchangeType.Fanout,
+                durable: true,
+                autoDelete: false
+            );
 
             return channel;
         }

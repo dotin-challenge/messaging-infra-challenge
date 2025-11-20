@@ -68,45 +68,26 @@ namespace InfoSubscriber
 
         private async Task<IChannel> CreateAndConfigureChannelAsync()
         {
-            var result = await connection.CreateChannelAsync();
+            var newChannel = await connection.CreateChannelAsync();
 
-            // Declare main fanout exchange (required!)
-            await result.ExchangeDeclareAsync(
+            await newChannel.ExchangeDeclareAsync(
                 Constants.InfoExchangeName,
                 ExchangeType.Fanout,
-                durable: true
+                durable: true,
+                autoDelete: false
             );
 
-            // Dead Letter Exchange
-            var deadLetterExchangeName = $"{Constants.InfoExchangeName}.dlx";
-            await result.ExchangeDeclareAsync(deadLetterExchangeName, ExchangeType.Fanout, durable: true);
-
-            var queueArgs = new Dictionary<string, object?> { { "x-dead-letter-exchange", deadLetterExchangeName } };
-
-            // Main queue
-            await result.QueueDeclareAsync(
+            await newChannel.QueueDeclareAsync(
                 queue: queueName,
                 durable: true,
                 exclusive: false,
                 autoDelete: false,
-                arguments: queueArgs
+                arguments: null
             );
 
-            // Dead Letter Queue
-            var deadLetterQueueName = $"{queueName}.dlq";
-            await result.QueueDeclareAsync(
-                queue: deadLetterQueueName,
-                durable: true,
-                exclusive: false,
-                autoDelete: false
-            );
+            await newChannel.QueueBindAsync(queueName, Constants.InfoExchangeName, "");
 
-            await result.QueueBindAsync(deadLetterQueueName, deadLetterExchangeName, "");
-
-            // Bind main queue to main exchange
-            await result.QueueBindAsync(queueName, Constants.InfoExchangeName, "");
-
-            return result;
+            return newChannel;
         }
     }
 }
