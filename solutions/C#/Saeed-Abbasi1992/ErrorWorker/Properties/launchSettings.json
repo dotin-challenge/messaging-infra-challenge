@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "ErrorWorker": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "AMQP_URI": "amqp://guest:guest@localhost:5672/",
+        "RABBIT_HOST": "localhost",
+        "RABBIT_USER": "guest",
+        "RABBIT_PASS": "guest"
+      }
+    }
+  }
+}
