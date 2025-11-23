@@ -1,0 +1,18 @@
+# Stage 1: Build
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
+WORKDIR /app
+
+COPY ./ErrorWorker/*.csproj ./ErrorWorker/
+COPY ./Shared/*.csproj ./Shared/
+RUN dotnet restore ./ErrorWorker/ErrorWorker.csproj
+
+COPY ./ErrorWorker ./ErrorWorker
+COPY ./Shared ./Shared
+WORKDIR /app/ErrorWorker
+RUN dotnet publish -c Release -o out
+
+# Stage 2: Runtime
+FROM mcr.microsoft.com/dotnet/runtime:6.0
+WORKDIR /app
+COPY --from=build /app/ErrorWorker/out ./
+ENTRYPOINT ["dotnet", "ErrorWorker.dll"]
